@@ -7,14 +7,14 @@ if("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
             source root before building again.")
 else()
     #[[ Set project version ]]
-    project(hmm-outliers)
-    set(HMM-OUTLIERS_MAJOR_VERSION 0)
-    set(HMM-OUTLIERS_MINOR_VERSION 1)
-    set(HMM-OUTLIERS_PATCH_VERSION 0)
-    set(HMM-OUTLIERS_VERSION
-        ${HMM-OUTLIERS_MAJOR_VERSION}.
-        ${HMM-OUTLIERS_MINOR_VERSION}.
-        ${HMM-OUTLIERS_PATCH_VERSION})
+    project(mission-control)
+    set(MISSION_CONTROL_MAJOR_VERSION 0)
+    set(MISSION_CONTROL_MINOR_VERSION 1)
+    set(MISSION_CONTROL_PATCH_VERSION 0)
+    set(MISSION_CONTROL_VERSION
+        ${MISSION_CONTROL_MAJOR_VERSION}.
+        ${MISSION_CONTROL_MINOR_VERSION}.
+        ${MISSION_CONTROL_PATCH_VERSION})
 
 
     #[[ CONSTANTS ]]
@@ -30,20 +30,20 @@ else()
 
     #[[ Define the output binary ]]
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-    add_executable(hmm-outliers ${SOURCE_MAIN})
+    add_executable(mission-control ${SOURCE_MAIN})
 
     #[[ link with threads ]]
     find_package (Threads)
-    target_link_libraries(hmm-outliers ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(mission-control ${CMAKE_THREAD_LIBS_INIT})
 
     #[[ Link internal libraries ]]
     add_library(internal_libs ${SOURCE_INTERNAL_LIBS})
     target_include_directories(internal_libs
         PUBLIC ${CMAKE_SOURCE_DIR}/includes
         PUBLIC ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(hmm-outliers internal_libs)
+    target_link_libraries(mission-control internal_libs)
 
     #[[ Link external libraries ]]
     add_subdirectory(libs)
-    target_link_libraries(hmm-outliers external_libs)
+    target_link_libraries(mission-control external_libs)
 endif("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
