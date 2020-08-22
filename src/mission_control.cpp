@@ -1,16 +1,19 @@
 #include "mission_control.h"
 
-
-int MissionControl::test_mission_control() {
-    return 5;
-}
-
-int MissionControl::set_current_run(std::string current_run) {
+int MissionControl::init_mission_control(std::string current_run, int parallelism, Logger* logger) {
+    this->logger = logger;
+    this->parallelism = std::max(1, std::min(MAX_PARALLELISM, parallelism));
     this->current_run = current_run + "/";
     mkdir((OUTPUT_DIR + this->current_run).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     mkdir((ERROR_DIR + this->current_run).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     mkdir(("/tmp/" + this->current_run).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    this->logger->log_info("Running with parallelism " + std::to_string(this->parallelism));
+    this->logger->log_info("Current Run Datetime: " + this->current_run);
     return 0;
+}
+
+int MissionControl::test_mission_control() {
+    return this->parallelism;
 }
 
 std::string MissionControl::format_output_file(std::string executable_name) {
@@ -23,29 +26,29 @@ std::string MissionControl::format_error_file(std::string executable_name) {
 
 int MissionControl::list_executables() {
     for(int i = 0; i < this->executable_count; i ++) {
-        std::cout<<"Executable "<<i<<": ";
+        this->logger->log_verbose("Executable " + std::to_string(i) + ": ");
         std::string current_executable_name = this->executable_names[i];
-        std::cout<<current_executable_name<<std::endl;
+        this->logger->log_verbose(current_executable_name);
 
-        std::cout<<"Executable Path:";
-        std::cout<<this->executable_paths[current_executable_name]<<std::endl;
+        this->logger->log_verbose("Executable Path:");
+        this->logger->log_verbose(this->executable_paths[current_executable_name]);
 
-        std::cout<<"Executable Output File: ";
-        std::cout<<this->executable_outputs[current_executable_name]<<std::endl;
+        this->logger->log_verbose("Executable Output File: ");
+        this->logger->log_verbose(this->executable_outputs[current_executable_name]);
 
-        std::cout<<"Executable Error File: ";
-        std::cout<<this->executable_errors[current_executable_name]<<std::endl;
+        this->logger->log_verbose("Executable Error File: ");
+        this->logger->log_verbose(this->executable_errors[current_executable_name]);
 
-        std::cout<<"Current Argument Count: ";
+        this->logger->log_verbose("Current Argument Count: ");
         int current_argument_count = this->executable_arguments_count[current_executable_name];
-        std::cout<<current_argument_count<<std::endl;
+        this->logger->log_verbose(std::to_string(current_argument_count));
 
-        std::cout<<"Current Arguments: ";
-        std::cout<<this->executable_arguments[current_executable_name][0];
+        this->logger->log_verbose("Current Arguments: ");
+        std::string current_arguments_str = this->executable_arguments[current_executable_name][0];
         for(int j = 1; j < current_argument_count; j ++) {
-            std::cout<<", "<<this->executable_arguments[current_executable_name][j];
+            current_arguments_str += (" " + this->executable_arguments[current_executable_name][j]);
         }
-        std::cout<<std::endl;
+        this->logger->log_verbose(current_arguments_str);
     }
     return 0;
 }
@@ -76,34 +79,56 @@ void* MissionControl::program_launcher(void* args) {
     return NULL;
 }
 
+int MissionControl::run_executable(pthread_t* worker_threads, MetaExecutable** meta_executables, int worker_id) {
+    std::string current_executable = this->executable_names[worker_id];
+    int current_executable_arguments_count = this->executable_arguments_count[current_executable];
+
+    char* current_executable_path_ptr = new char[this->executable_paths[current_executable].length() + 1];
+    std::strcpy(current_executable_path_ptr, this->executable_paths[current_executable].c_str());
+
+    char* current_executable_output_ptr = new char[this->executable_outputs[current_executable].length() + 1];
+    std::strcpy(current_executable_output_ptr, this->executable_outputs[current_executable].c_str());
+
+    char* current_executable_error_ptr = new char[this->executable_errors[current_executable].length() + 1];
+    std::strcpy(current_executable_error_ptr, this->executable_errors[current_executable].c_str());
+
+    char** current_executable_arguments_ptr = new char*[current_executable_arguments_count + 1];
+    for(int j = 0; j < current_executable_arguments_count; j ++) {
+        current_executable_arguments_ptr[j] = new char[this->executable_arguments[current_executable][j].length() + 1];
+        std::strcpy(current_executable_arguments_ptr[j], this->executable_arguments[current_executable][j].c_str());
+    }
+    current_executable_arguments_ptr[current_executable_arguments_count] = NULL;
+
+    MetaExecutable* current_meta_executable = new MetaExecutable(current_executable_path_ptr, current_executable_output_ptr, current_executable_error_ptr, current_executable_arguments_ptr, current_executable_arguments_count);
+    meta_executables[worker_id] = current_meta_executable;
+    this->logger->log_info("calling: " + current_executable);
+    pthread_create(&worker_threads[worker_id], NULL, MissionControl::program_launcher, (void*)current_meta_executable);
+    return 0;
+}
+
 int MissionControl::run_executables() {
     pthread_t worker_threads[this->executable_count];
     MetaExecutable* meta_executables[this->executable_count];
-    for(int i = 0; i < this->executable_count; i ++) {
-        std::string current_executable = this->executable_names[i];
-        int current_executable_arguments_count = this->executable_arguments_count[current_executable];
-
-        char* current_executable_path_ptr = new char[this->executable_paths[current_executable].length() + 1];
-        std::strcpy(current_executable_path_ptr, this->executable_paths[current_executable].c_str());
-
-        char* current_executable_output_ptr = new char[this->executable_outputs[current_executable].length() + 1];
-        std::strcpy(current_executable_output_ptr, this->executable_outputs[current_executable].c_str());
-
-        char* current_executable_error_ptr = new char[this->executable_errors[current_executable].length() + 1];
-        std::strcpy(current_executable_error_ptr, this->executable_errors[current_executable].c_str());
-
-        char** current_executable_arguments_ptr = new char*[current_executable_arguments_count + 1];
-        for(int j = 0; j < current_executable_arguments_count; j ++) {
-            current_executable_arguments_ptr[j] = new char[this->executable_arguments[current_executable][j].length() + 1];
-            std::strcpy(current_executable_arguments_ptr[j], this->executable_arguments[current_executable][j].c_str());
+    int start = 0;
+    if(this->parallelism < this->executable_count) {
+        int stride_end = (this->executable_count / this->parallelism) * this->parallelism;
+        start = stride_end;
+        for(int i = 0; i < stride_end; i += this->parallelism) {
+            for(int j = i; j < i + this->parallelism; j ++) {
+                this->run_executable(worker_threads, meta_executables, j);
+            }
+            this->logger->log_verbose("Waiting to join id " + std::to_string(i) + " through " + std::to_string(i + this->parallelism - 1));
+            for(int j = i; j < i + this->parallelism; j ++) {
+                pthread_join(worker_threads[j], NULL);
+                delete meta_executables[j];
+            }
         }
-        current_executable_arguments_ptr[current_executable_arguments_count] = NULL;
-
-        MetaExecutable* current_meta_executable = new MetaExecutable(current_executable_path_ptr, current_executable_output_ptr, current_executable_error_ptr, current_executable_arguments_ptr, current_executable_arguments_count);
-        meta_executables[i] = current_meta_executable;
-        pthread_create(&worker_threads[i], NULL, MissionControl::program_launcher, (void*)current_meta_executable);
     }
-    for(int i = 0; i < this->executable_count; i ++) {
+    for(int i = start; i < this->executable_count; i ++) {
+        this->run_executable(worker_threads, meta_executables, i);
+    }
+    for(int i = start; i < this->executable_count; i ++) {
+        this->logger->log_verbose("Waiting to join id " + std::to_string(i) + " through " + std::to_string(this->executable_count - 1));
         pthread_join(worker_threads[i], NULL);
         delete meta_executables[i];
     }

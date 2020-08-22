@@ -18,28 +18,10 @@
 #include <stdio.h>
 
 #include "consts.h"
+#include "logger.h"
 
 class MissionControl {
     public:
-        std::map<std::string, std::string> executable_paths;
-        std::map<std::string, std::string> executable_outputs;
-        std::map<std::string, std::string> executable_errors;
-        std::map<std::string, std::vector<std::string>>  executable_arguments;
-        std::map<std::string, int>  executable_arguments_count;
-        std::vector<std::string> executable_names;
-        int executable_count;
-        std::string current_run;
-
-        int set_current_run(std::string current_run);
-        std::string format_output_file(std::string executable_name);
-        std::string format_error_file(std::string executable_name);
-        int test_mission_control();
-        int list_executables();
-        static void* program_launcher(void* args);
-        int run_executables();
-        int add_executable(std::string executable_name, std::string executable_path);
-        int remove_executable(std::string executable_name);
-        int update_executable_argument(std::string executable_name, std::vector<std::string> executable_arguments);
         struct MetaExecutable {
             char* executable_path;
             char* executable_output;
@@ -63,6 +45,29 @@ class MissionControl {
                 delete [] executable_error;
             }
         };
+
+        std::map<std::string, std::string> executable_paths;
+        std::map<std::string, std::string> executable_outputs;
+        std::map<std::string, std::string> executable_errors;
+        std::map<std::string, std::vector<std::string>>  executable_arguments;
+        std::map<std::string, int>  executable_arguments_count;
+        std::vector<std::string> executable_names;
+        int executable_count;
+        int parallelism;
+        std::string current_run;
+        Logger* logger;
+
+        int init_mission_control(std::string current_run, int parallelism, Logger* logger);
+        std::string format_output_file(std::string executable_name);
+        std::string format_error_file(std::string executable_name);
+        int test_mission_control();
+        int list_executables();
+        static void* program_launcher(void* args);
+        int run_executable(pthread_t* worker_threads, MetaExecutable** meta_executables, int work_id);
+        int run_executables();
+        int add_executable(std::string executable_name, std::string executable_path);
+        int remove_executable(std::string executable_name);
+        int update_executable_argument(std::string executable_name, std::vector<std::string> executable_arguments);
 };
 
 #endif

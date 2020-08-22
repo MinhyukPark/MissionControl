@@ -35,6 +35,9 @@ LOG_FILE="/scratch/users/minhyuk2/logs/mission-control-$(date +"%Y_%m_%d_%I_%M_%
 ${PBS_O_WORKDIR}/scripts/build_and_compile.sh && ${PBS_O_WORKDIR}/build/bin/mission-control > $LOG_FILE
 
 # move the output log to logs
+echo "End Program Output" >> $LOG_FILE
+echo "------------------" >> $LOG_FILE
+echo "Begin Cluster Log" >> $LOG_FILE
 cat ${PBS_O_WORKDIR}/MissionControl* >> $LOG_FILE && rm ${PBS_O_WORKDIR}/MissionControl*
 
 echo "Ran to completion" >> $LOG_FILE

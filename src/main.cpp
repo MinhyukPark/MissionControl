@@ -1,8 +1,7 @@
-#include "library.h"
 #include "mission_control.h"
 
 int main(int argc, char* argv[]) {
-    std::cout<<"Started Main"<<std::endl;
+    Logger* logger = new Logger(LogLevel::VERBOSE);
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     std::time_t c_now = std::chrono::system_clock::to_time_t(now);
     struct tm* tm_struct;
@@ -11,9 +10,11 @@ int main(int argc, char* argv[]) {
     strftime(tm_buffer, sizeof(tm_buffer), "%Y-%m-%d_%H-%M-%S", tm_struct);
     std::string current_datetime(tm_buffer);
     std::string current_run = "MissionControl-Pipeline-" + current_datetime;
-    /* MissionControl* mc = new MissionControl(current_run); */
     MissionControl* mc = new MissionControl();
-    mc->set_current_run(current_run);
+    int PARALLELISM = 3;
+    mc->init_mission_control(current_run, PARALLELISM, logger);
+    mc->test_mission_control();
+    mc->logger->log_info("Started Main");
 
     std::string input_alignment = INPUT_DIR + "rose.aln.trimmed.fasta";
 
@@ -48,11 +49,13 @@ int main(int argc, char* argv[]) {
     mc->run_executables();
     mc->remove_executable(decompose_executable_name);
     // IQTree to build a tree on each subset
+    // reading decomposer output to get the number of subsets
     std::string iqtree_binary = "iqtree";
     int cluster_size;
     std::ifstream decompose_output_file(mc->format_output_file(decompose_executable_name));
     decompose_output_file >> cluster_size;
     decompose_output_file.close();
+    // and then running iqtree on each subset if it exists
     for(int i = 0; i < cluster_size; i ++) {
         std::string current_sequence_file = OUTPUT_DIR + mc->current_run + "sequence_partition_" + std::to_string(i) + ".out";
         std::ifstream current_sequence_partition_file(current_sequence_file);
@@ -62,10 +65,13 @@ int main(int argc, char* argv[]) {
             std::string iqtree_executable_name = "iqtree" + std::to_string(i);
             mc->add_executable(iqtree_executable_name, iqtree_binary);
             mc->update_executable_argument(iqtree_executable_name, iqtree_args);
-            mc->list_executables();
-            mc->run_executables();
-            mc->remove_executable(iqtree_executable_name);
         }
+    }
+    mc->list_executables();
+    mc->run_executables();
+    for(int i = 0; i < cluster_size; i ++) {
+        std::string iqtree_executable_name = "iqtree" + std::to_string(i);
+        mc->remove_executable(iqtree_executable_name);
     }
     // TreeMerge to merge the trees
     // using astrid first to get the AGID matrix and taxlist
@@ -106,6 +112,6 @@ int main(int argc, char* argv[]) {
     mc->list_executables();
     mc->run_executables();
     mc->remove_executable(treemerge_executable_name);
-    std::cout<<"end experiments"<<std::endl;
+    mc->logger->log_info("End experiments");
     delete mc;
 }

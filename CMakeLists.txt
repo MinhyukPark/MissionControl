@@ -25,7 +25,8 @@ else()
     # File paths
     set(SOURCE_MAIN ${CMAKE_SOURCE_DIR}/src/main.cpp)
     set(SOURCE_INTERNAL_LIBS
-        ${CMAKE_SOURCE_DIR}/src/mission_control.cpp)
+        ${CMAKE_SOURCE_DIR}/src/mission_control.cpp
+        ${CMAKE_SOURCE_DIR}/src/logger.cpp)
     #[[ CONSTANTS END ]]
 
     #[[ Define the output binary ]]
