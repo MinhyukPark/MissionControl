@@ -11,25 +11,29 @@ int main(int argc, char* argv[]) {
     std::string current_datetime(tm_buffer);
     std::string current_run = "MissionControl-Pipeline-" + current_datetime;
     MissionControl* mc = new MissionControl();
-    int PARALLELISM = 3;
+    int PARALLELISM = 4;
     mc->init_mission_control(current_run, PARALLELISM, logger);
     mc->test_mission_control();
     mc->logger->log_info("Started Main");
 
-    std::string input_alignment = INPUT_DIR + "rose.aln.trimmed.fasta";
+    std::string input_alignment = INPUT_DIR + "rose.aln.true.fasta";
 
-    // MAFFT to build the MSA
-    std::string mafft_binary = "mafft";
-    std::vector<std::string> mafft_args = {input_alignment};
-    std::string mafft_executable_name = "mafft";
-    mc->add_executable(mafft_executable_name, mafft_binary);
-    mc->update_executable_argument(mafft_executable_name, mafft_args);
-    mc->list_executables();
-    mc->run_executables();
-    mc->remove_executable(mafft_executable_name);
+    if(false) {
+        // [optional] MAFFT to build the MSA
+        std::string mafft_binary = "mafft";
+        std::vector<std::string> mafft_args = {input_alignment};
+        std::string mafft_executable_name = "mafft";
+        mc->add_executable(mafft_executable_name, mafft_binary);
+        mc->update_executable_argument(mafft_executable_name, mafft_args);
+        mc->list_executables();
+        mc->run_executables();
+        mc->remove_executable(mafft_executable_name);
+        input_alignment = mc->format_output_file(mafft_executable_name);
+    }
+
     // FastTree to build the starting tree from MSA
     std::string fasttree_binary = "fasttree";
-    std::vector<std::string> fasttree_args = {mc->format_output_file(mafft_executable_name)};
+    std::vector<std::string> fasttree_args = {input_alignment};
     std::string fasttree_executable_name = "fasttree";
     mc->add_executable(fasttree_executable_name, fasttree_binary);
     mc->update_executable_argument(fasttree_executable_name, fasttree_args);
@@ -40,8 +44,8 @@ int main(int argc, char* argv[]) {
     std::string python3_binary = "python3";
     std::string max_subset_size_str = "10";
     std::string sequence_partition_prefix = "sequence_partition_";
-    std::vector<std::string> decompose_args = {USER_CS + "vlad_decompose/custom_entry.py", mc->format_output_file(fasttree_executable_name), max_subset_size_str,
-                                               mc->format_output_file(mafft_executable_name), OUTPUT_DIR + mc->current_run + sequence_partition_prefix};
+    std::vector<std::string> decompose_args = {QUICK_SCRIPTS + "decompose.py", mc->format_output_file(fasttree_executable_name), max_subset_size_str,
+                                               input_alignment, OUTPUT_DIR + mc->current_run + sequence_partition_prefix};
     std::string decompose_executable_name = "decompose";
     mc->add_executable(decompose_executable_name, python3_binary);
     mc->update_executable_argument(decompose_executable_name, decompose_args);
@@ -56,12 +60,13 @@ int main(int argc, char* argv[]) {
     decompose_output_file >> cluster_size;
     decompose_output_file.close();
     // and then running iqtree on each subset if it exists
+    std::string predefined_seed = "10101";
     for(int i = 0; i < cluster_size; i ++) {
         std::string current_sequence_file = OUTPUT_DIR + mc->current_run + "sequence_partition_" + std::to_string(i) + ".out";
         std::ifstream current_sequence_partition_file(current_sequence_file);
         if (current_sequence_partition_file.is_open()) {
             current_sequence_partition_file.close();
-            std::vector<std::string> iqtree_args = {"-s", current_sequence_file, "-m", "MFP"};
+            std::vector<std::string> iqtree_args = {"-s", current_sequence_file, "-m", "MFP", "-seed", predefined_seed};
             std::string iqtree_executable_name = "iqtree" + std::to_string(i);
             mc->add_executable(iqtree_executable_name, iqtree_binary);
             mc->update_executable_argument(iqtree_executable_name, iqtree_args);
@@ -87,7 +92,8 @@ int main(int argc, char* argv[]) {
     mc->remove_executable(astrid_executable_name);
     // and then using treemerge on the final set of inputs
     std::string python2_binary = "python";
-    std::vector<std::string> treemerge_args = {"/opt/treemerge/python/treemerge.py", "-s", mc->format_output_file(fasttree_executable_name), "-t"};
+    /* std::vector<std::string> treemerge_args = {"/opt/treemerge/python/treemerge.py", "-s", mc->format_output_file(fasttree_executable_name), "-t"}; */
+    std::vector<std::string> treemerge_args = {"/home/minhyuk2/git_repos/treemerge/python/treemerge.py", "-s", mc->format_output_file(fasttree_executable_name), "-t"};
     for(int i = 0; i < cluster_size; i ++) {
         std::string current_sequence_treefile = OUTPUT_DIR + mc->current_run + "sequence_partition_" + std::to_string(i) + ".out.treefile";
         std::ifstream current_sequence_partition_treefile(current_sequence_treefile);
