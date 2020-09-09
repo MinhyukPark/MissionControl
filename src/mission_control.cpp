@@ -1,27 +1,35 @@
 #include "mission_control.h"
 
-int MissionControl::init_mission_control(std::string current_run, int parallelism, Logger* logger) {
-    this->logger = logger;
+int MissionControl::init_mission_control() {
+    this->logger = new Logger(static_cast<LogLevel>(LOG_LEVEL));
     this->parallelism = std::max(1, std::min(MAX_PARALLELISM, parallelism));
-    this->current_run = current_run + "/";
-    mkdir((OUTPUT_DIR + this->current_run).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    mkdir((ERROR_DIR + this->current_run).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    mkdir(("/tmp/" + this->current_run).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    this->logger->log_info("Running with parallelism " + std::to_string(this->parallelism));
-    this->logger->log_info("Current Run Datetime: " + this->current_run);
+    /* std::filesystem::create_directories(INPUT_DIR); */
+    /* std::filesystem::create_directories(OUTPUT_DIR); */
+    /* std::filesystem::create_directories(ERROR_DIR); */
+    /* std::filesystem::create_directories(TEMP_WORK_DIR); */
+    system(("mkdir -p " + INPUT_DIR).c_str());
+    system(("mkdir -p " + OUTPUT_DIR).c_str());
+    system(("mkdir -p " + ERROR_DIR).c_str());
+    system(("mkdir -p " + TEMP_WORK_DIR).c_str());
     return 0;
 }
 
 int MissionControl::test_mission_control() {
+    this->logger->log_info("Running with parallelism " + std::to_string(this->parallelism));
+    this->logger->log_info("Input Directory read as  " + INPUT_DIR);
+    this->logger->log_info("Output Directory read as  " + OUTPUT_DIR);
+    this->logger->log_info("Error Directory read as  " + ERROR_DIR);
+    this->logger->log_info("Temp Work Directory read as  " + TEMP_WORK_DIR);
+    this->logger->log_info("Current Run Description: " + CURRENT_RUN_DESCRIPTION);
     return this->parallelism;
 }
 
 std::string MissionControl::format_output_file(std::string executable_name) {
-    return OUTPUT_DIR + this->current_run + executable_name + ".out";
+    return OUTPUT_DIR + executable_name + ".out";
 }
 
 std::string MissionControl::format_error_file(std::string executable_name) {
-    return ERROR_DIR + this->current_run + executable_name + ".err";
+    return ERROR_DIR + executable_name + ".err";
 }
 
 int MissionControl::list_executables() {

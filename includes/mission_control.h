@@ -57,7 +57,7 @@ class MissionControl {
         std::string current_run;
         Logger* logger;
 
-        int init_mission_control(std::string current_run, int parallelism, Logger* logger);
+        int init_mission_control();
         std::string format_output_file(std::string executable_name);
         std::string format_error_file(std::string executable_name);
         int test_mission_control();
