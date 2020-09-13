@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
         std::ifstream current_sequence_partition_file(current_sequence_file);
         if (current_sequence_partition_file.is_open()) {
             current_sequence_partition_file.close();
-            std::vector<std::string> iqtree_args = {"-s", current_sequence_file, "-seed", predefined_seed, "-nt", "AUTO"};
+            std::vector<std::string> iqtree_args = {"-s", current_sequence_file, "-seed", predefined_seed, "-nt", "AUTO", "-pre", OUTPUT_DIR + SEQUENCE_PARTITION_PREFIX + std::to_string(i)};
             std::string iqtree_executable_name = "iqtree" + std::to_string(i);
             mc->add_executable(iqtree_executable_name, iqtree_binary);
             mc->update_executable_argument(iqtree_executable_name, iqtree_args);
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
     std::string python2_binary = "python";
     std::vector<std::string> treemerge_args = {"/opt/treemerge/python/treemerge.py", "-s", starting_tree, "-t"};
     for(int i = 0; i < cluster_size; i ++) {
-        std::string current_sequence_treefile = OUTPUT_DIR + SEQUENCE_PARTITION_PREFIX + std::to_string(i) + ".out.treefile";
+        std::string current_sequence_treefile = OUTPUT_DIR + SEQUENCE_PARTITION_PREFIX + std::to_string(i) + ".treefile";
         std::ifstream current_sequence_partition_treefile(current_sequence_treefile);
         if (current_sequence_partition_treefile.is_open()) {
             current_sequence_partition_treefile.close();
