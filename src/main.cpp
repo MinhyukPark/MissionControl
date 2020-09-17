@@ -1,5 +1,215 @@
 #include "mission_control.h"
 
+bool merge_if_possible(MissionControl* mc, std::vector<std::string>* tree_file_name_vec, std::string parent_alignment, std::string left_alignment, std::string right_alignment, std::string alignment_file_prefix) {
+    bool merged = true;
+    // IQTree to build a tree on each subset
+    // reading decomposer output to get the number of subsets
+    std::string iqtree_binary = "iqtree";
+    // and then running iqtree on each subset if it exists
+    std::string predefined_seed = "10101";
+    std::string left_sequence_file = left_alignment + ".out";
+    std::string right_sequence_file = right_alignment + ".out";
+    std::vector<std::string> left_iqtree_args = {"-s", left_sequence_file, "-seed", predefined_seed, "-nt", "AUTO", "-pre", left_alignment, "-bb", BOOTSTRAP_NUM};
+    std::vector<std::string> right_iqtree_args = {"-s", right_sequence_file, "-seed", predefined_seed, "-nt", "AUTO", "-pre", right_alignment, "-bb", BOOTSTRAP_NUM};
+    std::string left_iqtree_executable_name = "iqtree" + alignment_file_prefix + "L";
+    std::string right_iqtree_executable_name = "iqtree" + alignment_file_prefix + "R";
+    mc->add_executable(left_iqtree_executable_name, iqtree_binary);
+    mc->add_executable(right_iqtree_executable_name, iqtree_binary);
+    mc->update_executable_argument(left_iqtree_executable_name, left_iqtree_args);
+    mc->update_executable_argument(right_iqtree_executable_name, right_iqtree_args);
+    mc->list_executables();
+    mc->run_executables();
+    mc->remove_executable(left_iqtree_executable_name);
+    mc->remove_executable(right_iqtree_executable_name);
+
+    // get models and do a cross-model check
+    // G-T is always 1.0 and omitted
+    // A-C, A-G, A-T, C-G, C-T, G-T in this order for GTR family
+    // GTR code is 012345
+    // for example, GTR{1.0, 2.0, 1.5, 3.7, 2.8}+
+    std::string python3_binary = "python3";
+    std::string left_tree_model_file = left_alignment + ".iqtree";
+    std::string right_tree_model_file = right_alignment + ".iqtree";
+    std::vector<std::string> left_parse_model_file_args = {QUICK_SCRIPTS + "parse_iqtree_file.py", "--input-filename", left_tree_model_file};
+    std::vector<std::string> right_parse_model_file_args = {QUICK_SCRIPTS + "parse_iqtree_file.py", "--input-filename", right_tree_model_file};
+    std::string left_parse_model_file_executable_name = "parse_model_file" + alignment_file_prefix + "L";
+    std::string right_parse_model_file_executable_name = "parse_model_file" + alignment_file_prefix + "R";
+    mc->add_executable(left_parse_model_file_executable_name, python3_binary);
+    mc->add_executable(right_parse_model_file_executable_name, python3_binary);
+    mc->update_executable_argument(left_parse_model_file_executable_name, left_parse_model_file_args);
+    mc->update_executable_argument(right_parse_model_file_executable_name, right_parse_model_file_args);
+    mc->list_executables();
+    mc->run_executables();
+    mc->remove_executable(left_parse_model_file_executable_name);
+    mc->remove_executable(right_parse_model_file_executable_name);
+
+    std::string left_model_string;
+    std::string right_model_string;
+    std::ifstream left_model_output_file(mc->format_output_file("parse_model_file" + alignment_file_prefix + "L"));
+    std::ifstream right_model_output_file(mc->format_output_file("parse_model_file" + alignment_file_prefix + "R"));
+    left_model_output_file >> left_model_string;
+    right_model_output_file >> right_model_string;
+    left_model_output_file.close();
+    right_model_output_file.close();
+    // build tree on each other's models
+    std::vector<std::string> left_cross_iqtree_args = {"-s", left_sequence_file, "-seed", predefined_seed, "-nt", "AUTO",
+        "-pre", left_alignment + "_cross_R",
+        "-m", right_model_string, "-bb", BOOTSTRAP_NUM};
+    std::vector<std::string> right_cross_iqtree_args = {"-s", right_sequence_file, "-seed", predefined_seed, "-nt", "AUTO",
+        "-pre", right_alignment + "_cross_L",
+        "-m", left_model_string, "-bb", BOOTSTRAP_NUM};
+    std::string left_cross_iqtree_executable_name = "iqtree" + alignment_file_prefix + "L_cross_R";
+    std::string right_cross_iqtree_executable_name = "iqtree" + alignment_file_prefix + "R_cross_L";
+
+    mc->add_executable(left_cross_iqtree_executable_name, iqtree_binary);
+    mc->add_executable(right_cross_iqtree_executable_name, iqtree_binary);
+    mc->update_executable_argument(left_cross_iqtree_executable_name, left_cross_iqtree_args);
+    mc->update_executable_argument(right_cross_iqtree_executable_name, right_cross_iqtree_args);
+    mc->list_executables();
+    mc->run_executables();
+    mc->remove_executable(left_cross_iqtree_executable_name);
+    mc->remove_executable(right_cross_iqtree_executable_name);
+
+    std::vector<bool> compatibility_vector = {false, false};
+
+
+    std::ifstream left_alignment_tree(left_alignment + ".treefile");
+    std::ifstream left_cross_right_alignment_tree(left_alignment + "_cross_R.treefile");
+    std::ifstream right_alignment_tree(right_alignment + ".treefile");
+    std::ifstream right_cross_left_alignment_tree(right_alignment + "_cross_L.treefile");
+
+    // collapse and check compatibility
+    // collapse using remove edges python
+    std::string enter_virtualenv_script = QUICK_SCRIPTS + "enter_virtualenv.sh";
+    std::string collapse_virtualenv_location = "/opt/binning/env/bin/activate";
+    std::string python2_binary = "python2";
+    std::vector<std::string> left_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", left_alignment + ".treefile",
+        "95", left_alignment + "-collapsed.tree", "-strip-both"};
+    std::vector<std::string> left_cross_R_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", left_alignment + "_cross_R.treefile",
+        "95", left_alignment + "_cross_R-collapsed.tree", "-strip-both"};
+    std::vector<std::string> right_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", right_alignment + ".treefile",
+        "95",right_alignment + "-collapsed.tree", "-strip-both"};
+    std::vector<std::string> right_cross_L_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", right_alignment + "_cross_L.treefile",
+        "95", right_alignment + "_cross_L-collapsed.tree", "-strip-both"};
+
+    std::string left_collapse_executable_name = "collapse" + alignment_file_prefix + "L";
+    std::string left_cross_R_collapse_executable_name = "collapse" + alignment_file_prefix + "L_cross_R";
+    std::string right_collapse_executable_name = "collapse" + alignment_file_prefix + "R";
+    std::string right_cross_L_collapse_executable_name = "collapse" + alignment_file_prefix + "R_cross_L";
+    mc->add_executable(left_collapse_executable_name, enter_virtualenv_script);
+    mc->add_executable(left_cross_R_collapse_executable_name, enter_virtualenv_script);
+    mc->add_executable(right_collapse_executable_name, enter_virtualenv_script);
+    mc->add_executable(right_cross_L_collapse_executable_name, enter_virtualenv_script);
+    mc->update_executable_argument(left_collapse_executable_name, left_collapse_args);
+    mc->update_executable_argument(left_cross_R_collapse_executable_name, left_cross_R_collapse_args);
+    mc->update_executable_argument(right_collapse_executable_name, right_collapse_args);
+    mc->update_executable_argument(right_cross_L_collapse_executable_name, right_cross_L_collapse_args);
+    mc->list_executables();
+    mc->run_executables();
+    mc->remove_executable(left_collapse_executable_name);
+    mc->remove_executable(left_cross_R_collapse_executable_name);
+    mc->remove_executable(right_collapse_executable_name);
+    mc->remove_executable(right_cross_L_collapse_executable_name);
+    // check compat java
+    std::string java_binary = "java";
+    std::vector<std::string> left_compat_args = {"-jar", "/opt/binning/phylonet_modified_compat.jar", "compat",
+        left_alignment + "-collapsed.tree", left_alignment + "_cross_R-collapsed.tree", "b"};
+    std::vector<std::string> right_compat_args = {"-jar", "/opt/binning/phylonet_modified_compat.jar", "compat",
+        right_alignment + "-collapsed.tree", right_alignment + "_cross_L-collapsed.tree", "b"};
+    std::string left_compat_executable_name = "compat" + alignment_file_prefix + "L";
+    std::string right_compat_executable_name = "compat" + alignment_file_prefix + "R";
+    mc->add_executable(left_compat_executable_name, java_binary);
+    mc->add_executable(right_compat_executable_name, java_binary);
+    mc->update_executable_argument(left_compat_executable_name, left_compat_args);
+    mc->update_executable_argument(right_compat_executable_name, right_compat_args);
+    mc->list_executables();
+    mc->run_executables();
+    mc->remove_executable(left_compat_executable_name);
+    mc->remove_executable(right_compat_executable_name);
+
+    std::string left_compat_output;
+    std::string right_compat_output;
+    std::ifstream left_compat_output_file(mc->format_output_file(left_compat_executable_name));
+    std::ifstream right_compat_output_file(mc->format_output_file(right_compat_executable_name));
+    std::getline(left_compat_output_file, left_compat_output);
+    std::getline(right_compat_output_file, right_compat_output);
+
+    /*
+     * False, False = do not merge the subsets
+     * True, False = use model B on both subsets after merging
+     * False, True = use model A on both subsets after merging
+     * True, True = get the average support on bracnhes and pick the larger one's model
+     */
+    bool left_compat = left_compat_output.compare("0 0 ");
+    bool right_compat = right_compat_output.compare("0 0 ");
+    mc->logger->log_verbose("Compatibility output for " + alignment_file_prefix + " L: " + left_compat_output);
+    mc->logger->log_verbose("Compatibility output for " + alignment_file_prefix + " R: " + right_compat_output);
+    if(left_compat || right_compat) {
+        merged = true;
+        std::string merged_tree_file = OUTPUT_DIR + alignment_file_prefix + "merged.tree";
+        std::string merge_iqtree_executable_name = "iqtree-merge" + alignment_file_prefix;
+        mc->add_executable(merge_iqtree_executable_name, iqtree_binary);
+        if(left_compat && right_compat) {
+            std::vector<std::string> merged_iqtree_args = {"-s", parent_alignment, "-seed", predefined_seed, "-nt", "AUTO", "-pre", merged_tree_file, "-bb", BOOTSTRAP_NUM};
+            mc->update_executable_argument(merge_iqtree_executable_name, merged_iqtree_args);
+        } else if(left_compat) {
+            std::vector<std::string> merged_iqtree_args = {"-s", parent_alignment, "-seed", predefined_seed, "-m", right_model_string, "-nt", "AUTO", "-pre", merged_tree_file, "-bb", BOOTSTRAP_NUM};
+            mc->update_executable_argument(merge_iqtree_executable_name, merged_iqtree_args);
+        } else {
+            std::vector<std::string> merged_iqtree_args = {"-s", parent_alignment, "-seed", predefined_seed, "-m", left_model_string, "-nt", "AUTO", "-pre", merged_tree_file, "-bb", BOOTSTRAP_NUM};
+            mc->update_executable_argument(merge_iqtree_executable_name, merged_iqtree_args);
+        }
+        mc->list_executables();
+        mc->run_executables();
+        mc->remove_executable(merge_iqtree_executable_name);
+        tree_file_name_vec->push_back(merged_tree_file);
+    } else {
+        merged = false;
+    }
+    return merged;
+}
+
+// initially called with fasttree.out for tree_file, "rose.aln.true.fasta" for alignment_file,  and SEQUENCE_PARTITION_PREFIX + "" for alignment_file_prefix
+int split_and_merge_if_possible_helper(MissionControl* mc, std::vector<std::string>* tree_file_name_vec, std::string tree_file, std::string alignment_file, std::string alignment_file_prefix) {
+    // Custom Python Script that uses Vlad's work to decompose the starting tree
+    mc->logger->log_verbose("Decomposing " + alignment_file + " with prefix " + alignment_file_prefix);
+    std::string python3_binary = "python3";
+    std::vector<std::string> decompose_args = {QUICK_SCRIPTS + "split_in_two.py", "--input-tree", tree_file,
+                                               "--sequence-file", alignment_file, "--output-prefix", OUTPUT_DIR + alignment_file_prefix,
+                                               "--minimum-size", "50"};
+    std::string decompose_executable_name = "decompose" + alignment_file_prefix;
+    mc->add_executable(decompose_executable_name, python3_binary);
+    mc->update_executable_argument(decompose_executable_name, decompose_args);
+    mc->list_executables();
+    mc->run_executables();
+    mc->remove_executable(decompose_executable_name);
+    int cluster_num = -42;
+    std::ifstream decompose_output(mc->format_output_file(decompose_executable_name));
+    decompose_output >> cluster_num;
+    if(cluster_num == -1) {
+        tree_file_name_vec->push_back(tree_file);
+        return true;
+    }
+
+    std::string left_alignment = OUTPUT_DIR + alignment_file_prefix + "L"; // .out
+    std::string right_alignment = OUTPUT_DIR + alignment_file_prefix + "R"; // .out
+    bool merged = merge_if_possible(mc, tree_file_name_vec, alignment_file, left_alignment, right_alignment, alignment_file_prefix);
+    mc->logger->log_verbose("merged status: ");
+    if(merged) {
+        mc->logger->log_verbose("true at " + alignment_file_prefix);
+    } else {
+        mc->logger->log_verbose("false at " + alignment_file_prefix);
+    }
+    return 0;
+    if(merged) {
+        return 0;
+    } else {
+        split_and_merge_if_possible_helper(mc, tree_file_name_vec, left_alignment + ".treefile", left_alignment + ".out", alignment_file_prefix + "L");
+        split_and_merge_if_possible_helper(mc, tree_file_name_vec, right_alignment + ".treefile", right_alignment + ".out", alignment_file_prefix + "R");
+    }
+    return 1;
+}
+
 int main(int argc, char* argv[]) {
     std::chrono::system_clock::time_point initial_time = std::chrono::system_clock::now();
     std::time_t c_initial = std::chrono::system_clock::to_time_t(initial_time);
@@ -15,21 +225,9 @@ int main(int argc, char* argv[]) {
     mc->logger->log_info("Started Main at " + initial_datetime);
 
     std::string starting_alignment;
-    if(!IS_ALIGNED) {
-        // [optional] MAFFT to build the MSA
-        std::string mafft_binary = "mafft";
-        std::vector<std::string> mafft_args = {INPUT_FILE_NAME};
-        std::string mafft_executable_name = "mafft";
-        mc->add_executable(mafft_executable_name, mafft_binary);
-        mc->update_executable_argument(mafft_executable_name, mafft_args);
-        mc->list_executables();
-        mc->run_executables();
-        mc->remove_executable(mafft_executable_name);
-        starting_alignment = mc->format_output_file(mafft_executable_name);
-    } else {
+    if(IS_ALIGNED) {
         starting_alignment = INPUT_FILE_NAME;
     }
-
     // FastTree to build the starting tree from MSA
     std::string starting_tree;
     if(STARTING_TREE_METHOD == "FastTree") {
@@ -44,73 +242,13 @@ int main(int argc, char* argv[]) {
         starting_tree = mc->format_output_file(fasttree_executable_name);
     }
 
-    // Custom Python Script that uses Vlad's work to decompose the starting tree
-    std::string python3_binary = "python3";
-    std::vector<std::string> decompose_args = {QUICK_SCRIPTS + "decompose.py", starting_tree, MAX_SUBSET_SIZE_STR,
-                                               starting_alignment, OUTPUT_DIR + SEQUENCE_PARTITION_PREFIX};
-    std::string decompose_executable_name = "decompose";
-    mc->add_executable(decompose_executable_name, python3_binary);
-    mc->update_executable_argument(decompose_executable_name, decompose_args);
-    mc->list_executables();
-    mc->run_executables();
-    mc->remove_executable(decompose_executable_name);
+    std::vector<std::string> tree_file_name_vec = {};
+    split_and_merge_if_possible_helper(mc, &tree_file_name_vec, starting_tree, starting_alignment, SEQUENCE_PARTITION_PREFIX);
+    mc->logger->log_verbose("Final Tree List:");
+    for(auto& tree : tree_file_name_vec) {
+        mc->logger->log_verbose(tree);
+    }
 
-    // IQTree to build a tree on each subset
-    // reading decomposer output to get the number of subsets
-    std::string iqtree_binary = "iqtree";
-    int cluster_size;
-    std::ifstream decompose_output_file(mc->format_output_file(decompose_executable_name));
-    decompose_output_file >> cluster_size;
-    decompose_output_file.close();
-    // and then running iqtree on each subset if it exists
-    std::string predefined_seed = "10101";
-    for(int i = 0; i < cluster_size; i ++) {
-        std::string current_sequence_file = OUTPUT_DIR + SEQUENCE_PARTITION_PREFIX + std::to_string(i) + ".out";
-        std::ifstream current_sequence_partition_file(current_sequence_file);
-        if (current_sequence_partition_file.is_open()) {
-            current_sequence_partition_file.close();
-            std::vector<std::string> iqtree_args = {"-s", current_sequence_file, "-seed", predefined_seed, "-nt", "AUTO", "-pre", OUTPUT_DIR + SEQUENCE_PARTITION_PREFIX + std::to_string(i)};
-            std::string iqtree_executable_name = "iqtree" + std::to_string(i);
-            mc->add_executable(iqtree_executable_name, iqtree_binary);
-            mc->update_executable_argument(iqtree_executable_name, iqtree_args);
-        }
-    }
-    mc->list_executables();
-    mc->run_executables();
-    for(int i = 0; i < cluster_size; i ++) {
-        std::string iqtree_executable_name = "iqtree" + std::to_string(i);
-        mc->remove_executable(iqtree_executable_name);
-    }
-    /*
-    // for every subset, run with every other model
-    //     - create a map of subset to model
-    //     - and then run with model for every subset
-    std::map<int, std::string> subset_model_map;
-    for(int i = 0; i < cluster_size; i ++) {
-        std::string current_model_filename = OUTPUT_DIR + mc->CURRENT_RUN + current_decompose_directory + "sequence_partition_" + std::to_string(i) + ".out.iqtree";
-        std::ifstream current_model_file(current_sequence_filename);
-        if (current_model_file.is_open()) {
-            std::string current_model = "";
-            // parse the file
-            std::string cur_line;
-            std::string search_target = "Best-fit model according to BIC: ";
-            while(getline(current_model_file, cur_line)) {
-                if(cur_line.find(search_target, 0) != string::npos) {
-
-                }
-            }
-            current_model_file.close();
-            subset_model_map[i] = current_model;
-        }
-    }
-    // for every subset tree output, calculate the rf-rate and store in a matrix
-    //     - mat[0][2] is tree 0 on tree 2's model, mat[2][0] is tree 2 on tree 0's model
-    // while there is still an entry in a matrix that is sufficiently low, merge and run iqtree on the merged subset using one of the models
-
-    bool did_merge = true;
-    while(did_merge) {
-    }
-    */
 
     // TreeMerge to merge the trees
     // using astrid first to get the AGID matrix and taxlist
@@ -125,15 +263,12 @@ int main(int argc, char* argv[]) {
     mc->run_executables();
     mc->remove_executable(astrid_executable_name);
     // and then using treemerge on the final set of inputs
+    std::string enter_virtualenv_script = QUICK_SCRIPTS + "enter_virtualenv.sh";
+    std::string treemerge_virtualenv_location = "/opt/treemerge/env/bin/activate";
     std::string python2_binary = "python";
-    std::vector<std::string> treemerge_args = {"/opt/treemerge/python/treemerge.py", "-s", starting_tree, "-t"};
-    for(int i = 0; i < cluster_size; i ++) {
-        std::string current_sequence_treefile = OUTPUT_DIR + SEQUENCE_PARTITION_PREFIX + std::to_string(i) + ".treefile";
-        std::ifstream current_sequence_partition_treefile(current_sequence_treefile);
-        if (current_sequence_partition_treefile.is_open()) {
-            current_sequence_partition_treefile.close();
-            treemerge_args.push_back(current_sequence_treefile);
-        }
+    std::vector<std::string> treemerge_args = {treemerge_virtualenv_location, python2_binary, "/opt/treemerge/python/treemerge.py", "-s", starting_tree, "-t"};
+    for(auto& tree : tree_file_name_vec) {
+        treemerge_args.push_back(tree);
     }
     treemerge_args.push_back("-m");
     treemerge_args.push_back(astrid_matrix_filename);
@@ -146,7 +281,7 @@ int main(int argc, char* argv[]) {
     treemerge_args.push_back("-p");
     treemerge_args.push_back("paup");
     std::string treemerge_executable_name = "treemerge";
-    mc->add_executable(treemerge_executable_name, python2_binary);
+    mc->add_executable(treemerge_executable_name, enter_virtualenv_script);
     mc->update_executable_argument(treemerge_executable_name, treemerge_args);
     mc->list_executables();
     mc->run_executables();

@@ -1,16 +1,5 @@
-#!/bin/bash
-#PBS -l walltime=04:00:00
-#PBS -l nodes=2:ppn=24
-#PBS -l mem=24gb
-#PBS -N MissionControl
-#PBS -j oe
-#PBS -q cs
-#PBS -W group_list=cs-warnow
-#PBS -l "naccesspolicy=shared"
-#PBS -S /home/minhyuk2/scripts/bio.sh
-
 #moves to the directory the user was in when they ran qsub
-cd ${PBS_O_WORKDIR} #assumed to be the source tree
+cd ${SLURM_SUBMIT_DIR} #assumed to be the source tree
 
 #check that the script was submit from the right place.
 if [ -d "./includes" ] && [ -d "./libs" ] && [ -d "./scripts" ] && [ -d "./src" ]
@@ -33,13 +22,13 @@ fi
 
 #build the programs and output the stdout to logs in scratch
 LOG_FILE="/scratch/users/minhyuk2/logs/mission-control-$(date +"%Y_%m_%d_%I_%M_%p").log"
-${PBS_O_WORKDIR}/scripts/build_and_compile.sh && ${PBS_O_WORKDIR}/build/bin/mission-control > $LOG_FILE
+${SLURM_SUBMIT_DIR}/scripts/build_and_compile.sh && ${SLURM_SUBMIT_DIR}/build/bin/mission-control > $LOG_FILE
 
 # move the output log to logs
 echo "End Program Output" >> $LOG_FILE
 echo "------------------" >> $LOG_FILE
 echo "Begin Cluster Log" >> $LOG_FILE
-cat ${PBS_O_WORKDIR}/MissionControl* >> $LOG_FILE && rm ${PBS_O_WORKDIR}/MissionControl*
+cat ${SLURM_SUBMIT_DIR}/slurm* >> $LOG_FILE && rm ${SLURM_SUBMIT_DIR}/slurm*
 
 echo "Ran to completion" >> $LOG_FILE
-cat $LOG_FILE >> "${PBS_O_WORKDIR}/run.log"
+cat $LOG_FILE >> "${SLURM_SUBMIT_DIR}/run.log"

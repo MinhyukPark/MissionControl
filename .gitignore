@@ -1,3 +1,7 @@
 build
 compile_commands.json
 *.tree
+*.out
+*.log
+*.log.*
+

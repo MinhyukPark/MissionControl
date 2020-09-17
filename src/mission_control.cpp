@@ -80,6 +80,8 @@ void* MissionControl::program_launcher(void* args) {
         dup2(error_fileno, STDERR_FILENO);
         fclose(output_file);
         fclose(error_file);
+        // add if file exists for env/bin/activate, run it to source
+
         execvp(current_executable->executable_path, current_executable->executable_arguments);
     } else {
         wait(NULL);
