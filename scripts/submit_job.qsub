@@ -12,4 +12,4 @@ cd $PBS_O_WORKDIR
 source /opt/modules/default/init/bash
 export CRAY_ROOTFS=SHIFTER
 
-aprun -n 1 -N 1 -b -- ./scripts/batch_script.aprun
+aprun -n 1 -N 1 -b -- ./scripts/batch_script.aprun > aprun.log
