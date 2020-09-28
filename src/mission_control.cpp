@@ -2,7 +2,7 @@
 
 int MissionControl::init_mission_control() {
     this->logger = new Logger(static_cast<LogLevel>(LOG_LEVEL));
-    this->parallelism = std::max(1, std::min(MAX_PARALLELISM, parallelism));
+    this->parallelism = std::max(1, std::min(MAX_PARALLELISM, PARALLELISM));
     /* std::filesystem::create_directories(INPUT_DIR); */
     /* std::filesystem::create_directories(OUTPUT_DIR); */
     /* std::filesystem::create_directories(ERROR_DIR); */
