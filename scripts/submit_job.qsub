@@ -2,14 +2,14 @@
 #PBS -A bbaz
 #PBS -j oe
 #PBS -l nodes=1:ppn=1:xe
-#PBS -l walltime=00:10:00
+#PBS -l walltime=00:20:00
 #PBS -l gres=shifter
 #PBS -q debug
-#PBS -v UDI=minpark815/bio:latest
+#PBS -v UDI="minpark815/bio:latest -v /mnt/a/u/sciteam/minhyuk2:/u/sciteam/minhyuk2"
 #PBS -N MissionControl
 
 cd $PBS_O_WORKDIR
 source /opt/modules/default/init/bash
 export CRAY_ROOTFS=SHIFTER
 
-aprun -n 1 -N 1 -b -- ./scripts/batch_script.aprun
+aprun -n 1 -N 1 -b -- ./scripts/batch_script.aprun > aprun.log

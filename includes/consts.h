@@ -7,7 +7,7 @@ const std::string CURRENT_RUN_DESCRIPTION = "This is a divide and conquer pipeli
 /* directories */
 // system default directories
 const std::string PROJECTS = "/projects/sciteam/bbaz/minhyuk2/"; // e.g. "/projects/tallis/minhyuk2/", "projects/sciteam/bbaz/minhyuk2"
-const std::string QUICK_SCRIPTS = "/u/sciteam/minhyuk2/git_repos/QuickScripts"; // e.g. "/home/minhyuk2/git_repos/QuickScripts/", "/u/sciteam/minhyuk2/git_repos/QuickScrits/"
+const std::string QUICK_SCRIPTS = "/u/sciteam/minhyuk2/git_repos/QuickScripts/"; // e.g. "/home/minhyuk2/git_repos/QuickScripts/", "/u/sciteam/minhyuk2/git_repos/QuickScrits/"
 /* const std::string PROJECTS = "/projects/tallis/minhyuk2/"; // e.g. "/projects/tallis/minhyuk2/", "projects/sciteam/bbaz/minhyuk2" */
 /* const std::string QUICK_SCRIPTS = "/home/minhyuk2/git_repos/QuickScripts/"; // e.g. "/home/minhyuk2/git_repos/QuickScripts/", "/u/sciteam/minhyuk2/git_repos/QuickScrits/" */
 

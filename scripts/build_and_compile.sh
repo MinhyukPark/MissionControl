@@ -7,6 +7,8 @@ mv output output_old
 mv run.log run.log.old
 mkdir build
 cd build
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
 cmake ..
 cp compile_commands.json ../
 make -j 10

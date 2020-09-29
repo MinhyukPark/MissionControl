@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #moves to the directory the user was in when they ran qsub
 cd ${PBS_O_WORKDIR} #assumed to be the source tree
 
@@ -23,5 +25,8 @@ fi
 #build the programs and output the stdout to logs in scratch
 LOG_FILE="run-$(date +"%Y_%m_%d_%I_%M_%p").log"
 ${PBS_O_WORKDIR}/scripts/build_and_compile.sh && ${PBS_O_WORKDIR}/build/bin/mission-control > $LOG_FILE
+
+# move the output log to logs
+echo "End Program Output" >> $LOG_FILE
 
 echo "Ran to completion" >> $LOG_FILE
