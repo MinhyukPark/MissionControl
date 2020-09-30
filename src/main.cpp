@@ -9,8 +9,8 @@ bool merge_if_possible(MissionControl* mc, std::vector<std::string>* tree_file_n
     std::string predefined_seed = "10101";
     std::string left_sequence_file = left_alignment + ".out";
     std::string right_sequence_file = right_alignment + ".out";
-    std::vector<std::string> left_raxmlng_args = {"--msa", left_sequence_file, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", left_alignment, "--bs-trees", "autoMRE"};
-    std::vector<std::string> right_raxmlng_args = {"--msa", right_sequence_file, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", right_alignment, "--bs-trees", "autoMRE"};
+    std::vector<std::string> left_raxmlng_args = {"--msa", left_sequence_file, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", left_alignment, "--all"};
+    std::vector<std::string> right_raxmlng_args = {"--msa", right_sequence_file, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", right_alignment, "--all"};
     std::string left_raxmlng_executable_name = "raxmlng" + alignment_file_prefix + "L";
     std::string right_raxmlng_executable_name = "raxmlng" + alignment_file_prefix + "R";
     mc->add_executable(left_raxmlng_executable_name, raxmlng_binary);
@@ -22,42 +22,23 @@ bool merge_if_possible(MissionControl* mc, std::vector<std::string>* tree_file_n
     mc->remove_executable(left_raxmlng_executable_name);
     mc->remove_executable(right_raxmlng_executable_name);
 
-    // get models and do a cross-model check
-    // G-T is always 1.0 and omitted
-    // A-C, A-G, A-T, C-G, C-T, G-T in this order for GTR family
-    // GTR code is 012345
-    // for example, GTR{1.0, 2.0, 1.5, 3.7, 2.8}+
-    std::string python3_binary = "python3";
-    std::string left_tree_model_file = left_alignment + ".iqtree"; // TODO: fix iqtree suffix
-    std::string right_tree_model_file = right_alignment + ".iqtree";
-    std::vector<std::string> left_parse_model_file_args = {QUICK_SCRIPTS + "parse_raxmlng_file.py", "--input-filename", left_tree_model_file};
-    std::vector<std::string> right_parse_model_file_args = {QUICK_SCRIPTS + "parse_raxmlng_file.py", "--input-filename", right_tree_model_file};
-    std::string left_parse_model_file_executable_name = "parse_model_file" + alignment_file_prefix + "L";
-    std::string right_parse_model_file_executable_name = "parse_model_file" + alignment_file_prefix + "R";
-    mc->add_executable(left_parse_model_file_executable_name, python3_binary);
-    mc->add_executable(right_parse_model_file_executable_name, python3_binary);
-    mc->update_executable_argument(left_parse_model_file_executable_name, left_parse_model_file_args);
-    mc->update_executable_argument(right_parse_model_file_executable_name, right_parse_model_file_args);
-    mc->list_executables();
-    mc->run_executables();
-    mc->remove_executable(left_parse_model_file_executable_name);
-    mc->remove_executable(right_parse_model_file_executable_name);
-
     std::string left_model_string;
     std::string right_model_string;
-    std::ifstream left_model_output_file(mc->format_output_file("parse_model_file" + alignment_file_prefix + "L"));
-    std::ifstream right_model_output_file(mc->format_output_file("parse_model_file" + alignment_file_prefix + "R"));
+    std::ifstream left_model_output_file(left_alignment + ".ramxl.bestModel");
+    std::ifstream right_model_output_file(right_alignment + ".raxml.bestModel");
     left_model_output_file >> left_model_string;
     right_model_output_file >> right_model_string;
     left_model_output_file.close();
     right_model_output_file.close();
+    left_model_string = left_model_string.substr(0, left_model_string.find(","));
+    right_model_string = right_model_string.substr(0, right_model_string.find(","));
     // build tree on each other's models
     std::vector<std::string> left_cross_raxmlng_args = {"--msa", left_sequence_file, "--seed", predefined_seed, "--threads", RAXML_NG_THREADS,
         "--prefix", left_alignment + "_cross_R",
-        "--model", right_model_string, "--bse", "autoMRE"};
+        "--model", right_model_string, "--all"};
     std::vector<std::string> right_cross_raxmlng_args = {"--msa", right_sequence_file, "--seed", predefined_seed, "--threads", RAXML_NG_THREADS,
         "--prefix", right_alignment + "_cross_L",
-        "--model", left_model_string, "--bse", "autoMRE"};
+        "--model", left_model_string, "--all"};
 
     std::string left_cross_raxmlng_executable_name = "raxmlng" + alignment_file_prefix + "L_cross_R";
     std::string right_cross_raxmlng_executable_name = "raxmlng" + alignment_file_prefix + "R_cross_L";
@@ -74,24 +55,19 @@ bool merge_if_possible(MissionControl* mc, std::vector<std::string>* tree_file_n
     std::vector<bool> compatibility_vector = {false, false};
 
 
-    std::ifstream left_alignment_tree(left_alignment + ".treefile"); // TODO: fix treefile suffix for raxmlng from iqtree
-    std::ifstream left_cross_right_alignment_tree(left_alignment + "_cross_R.treefile");
-    std::ifstream right_alignment_tree(right_alignment + ".treefile");
-    std::ifstream right_cross_left_alignment_tree(right_alignment + "_cross_L.treefile");
-
     // collapse and check compatibility
     // collapse using remove edges python
     std::string enter_virtualenv_script = QUICK_SCRIPTS + "enter_virtualenv.sh";
     std::string collapse_virtualenv_location = "/opt/binning/env/bin/activate";
     std::string python2_binary = "python2";
-    std::vector<std::string> left_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", left_alignment + ".treefile", // TODO: fix treefile suffix
-        "95", left_alignment + "-collapsed.tree", "-strip-both"};
-    std::vector<std::string> left_cross_R_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", left_alignment + "_cross_R.treefile",
-        "95", left_alignment + "_cross_R-collapsed.tree", "-strip-both"};
-    std::vector<std::string> right_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", right_alignment + ".treefile",
-        "95",right_alignment + "-collapsed.tree", "-strip-both"};
-    std::vector<std::string> right_cross_L_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", right_alignment + "_cross_L.treefile",
-        "95", right_alignment + "_cross_L-collapsed.tree", "-strip-both"};
+    std::vector<std::string> left_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", left_alignment + ".raxml.support",
+        SUPPORT_THRESHOLD, left_alignment + "-collapsed.tree", "-strip-both"};
+    std::vector<std::string> left_cross_R_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", left_alignment + "_cross_R.raxml.support",
+        SUPPORT_THRESHOLD, left_alignment + "_cross_R-collapsed.tree", "-strip-both"};
+    std::vector<std::string> right_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", right_alignment + ".raxml.support",
+        SUPPORT_THRESHOLD, right_alignment + "-collapsed.tree", "-strip-both"};
+    std::vector<std::string> right_cross_L_collapse_args = {collapse_virtualenv_location, python2_binary, "/opt/binning/remove_edges_from_tree.py", right_alignment + "_cross_L.raxml.support",
+        SUPPORT_THRESHOLD, right_alignment + "_cross_L-collapsed.tree", "-strip-both"};
 
     std::string left_collapse_executable_name = "collapse" + alignment_file_prefix + "L";
     std::string left_cross_R_collapse_executable_name = "collapse" + alignment_file_prefix + "L_cross_R";
@@ -151,17 +127,17 @@ bool merge_if_possible(MissionControl* mc, std::vector<std::string>* tree_file_n
         std::string merge_raxmlng_executable_name = "raxmlng-merge" + alignment_file_prefix;
         mc->add_executable(merge_raxmlng_executable_name, raxmlng_binary);
         if(left_compat && right_compat) {
-            std::vector<std::string> merged_raxmlng_args = {"--msa", parent_alignment, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", merge_tree_file, "--bs-trees", "autoMRE"};
+            std::vector<std::string> merged_raxmlng_args = {"--msa", parent_alignment, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", merge_tree_file, "--all"};
             mc->update_executable_argument(merge_raxmlng_executable_name, merged_raxmlng_args);
         } else if(left_compat) {
             std::vector<std::string> merged_raxmlng_args = {"--msa", parent_alignment, "--seed", predefined_seed, "--threads", RAXML_NG_THREADS,
                 "--prefix", merged_tree_file,
-                "--model", right_model_string, "--bse", "autoMRE"};
+                "--model", right_model_string, "--all"};
             mc->update_executable_argument(merge_raxmlng_executable_name, merged_raxmlng_args);
         } else {
             std::vector<std::string> merged_raxmlng_args = {"--msa", parent_alignment, "--seed", predefined_seed, "--threads", RAXML_NG_THREADS,
                 "--prefix", merged_tree_file,
-                "--model", left_model_string, "--bse", "autoMRE"};
+                "--model", left_model_string, "--all"};
             mc->update_executable_argument(merge_raxmlng_executable_name, merged_raxmlng_args);
         }
         mc->list_executables();
@@ -181,7 +157,7 @@ int split_and_merge_if_possible_helper(MissionControl* mc, std::vector<std::stri
     std::string python3_binary = "python3";
     std::vector<std::string> decompose_args = {QUICK_SCRIPTS + "split_in_two.py", "--input-tree", tree_file,
                                                "--sequence-file", alignment_file, "--output-prefix", OUTPUT_DIR + alignment_file_prefix,
-                                               "--minimum-size", "50"};
+                                               "--minimum-size", "40"};
     std::string decompose_executable_name = "decompose" + alignment_file_prefix;
     mc->add_executable(decompose_executable_name, python3_binary);
     mc->update_executable_argument(decompose_executable_name, decompose_args);
@@ -205,12 +181,11 @@ int split_and_merge_if_possible_helper(MissionControl* mc, std::vector<std::stri
     } else {
         mc->logger->log_verbose("false at " + alignment_file_prefix);
     }
-    return 0;
     if(merged) {
         return 0;
     } else {
-        split_and_merge_if_possible_helper(mc, tree_file_name_vec, left_alignment + ".treefile", left_alignment + ".out", alignment_file_prefix + "L"); // TODO: fix treefile suffix
-        split_and_merge_if_possible_helper(mc, tree_file_name_vec, right_alignment + ".treefile", right_alignment + ".out", alignment_file_prefix + "R");
+        split_and_merge_if_possible_helper(mc, tree_file_name_vec, left_alignment + ".raxml.bestTree", left_alignment + ".out", alignment_file_prefix + "L");
+        split_and_merge_if_possible_helper(mc, tree_file_name_vec, right_alignment + ".raxml.bestTree", right_alignment + ".out", alignment_file_prefix + "R");
     }
     return 1;
 }
