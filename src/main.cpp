@@ -9,8 +9,8 @@ bool merge_if_possible(MissionControl* mc, std::vector<std::string>* tree_file_n
     std::string predefined_seed = "10101";
     std::string left_sequence_file = left_alignment + ".out";
     std::string right_sequence_file = right_alignment + ".out";
-    std::vector<std::string> left_raxmlng_args = {"--msa", left_sequence_file, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", left_alignment, "--all"};
-    std::vector<std::string> right_raxmlng_args = {"--msa", right_sequence_file, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", right_alignment, "--all"};
+    std::vector<std::string> left_raxmlng_args = {"--msa", left_sequence_file, "--model", "GTR+G", "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", left_alignment, "--all"};
+    std::vector<std::string> right_raxmlng_args = {"--msa", right_sequence_file, "--model", "GTR+G", "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", right_alignment, "--all"};
     std::string left_raxmlng_executable_name = "raxmlng" + alignment_file_prefix + "L";
     std::string right_raxmlng_executable_name = "raxmlng" + alignment_file_prefix + "R";
     mc->add_executable(left_raxmlng_executable_name, raxmlng_binary);
@@ -127,7 +127,7 @@ bool merge_if_possible(MissionControl* mc, std::vector<std::string>* tree_file_n
         std::string merge_raxmlng_executable_name = "raxmlng-merge" + alignment_file_prefix;
         mc->add_executable(merge_raxmlng_executable_name, raxmlng_binary);
         if(left_compat && right_compat) {
-            std::vector<std::string> merged_raxmlng_args = {"--msa", parent_alignment, "--model", "GTR+G" "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", merge_tree_file, "--all"};
+            std::vector<std::string> merged_raxmlng_args = {"--msa", parent_alignment, "--model", "GTR+G", "--seed", predefined_seed, "--threads", RAXML_NG_THREADS, "--prefix", merged_tree_file, "--all"};
             mc->update_executable_argument(merge_raxmlng_executable_name, merged_raxmlng_args);
         } else if(left_compat) {
             std::vector<std::string> merged_raxmlng_args = {"--msa", parent_alignment, "--seed", predefined_seed, "--threads", RAXML_NG_THREADS,
@@ -168,6 +168,10 @@ int split_and_merge_if_possible_helper(MissionControl* mc, std::vector<std::stri
     std::ifstream decompose_output(mc->format_output_file(decompose_executable_name));
     decompose_output >> cluster_num;
     if(cluster_num == -1) {
+        tree_file_name_vec->push_back(tree_file);
+        return true;
+    } else if (cluster_num < 0) {
+        mc->logger->log_verbose("Error in decompose");
         tree_file_name_vec->push_back(tree_file);
         return true;
     }
