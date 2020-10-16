@@ -3,6 +3,7 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 
 enum class LogLevel {
     SILENT = 0,
@@ -12,6 +13,7 @@ enum class LogLevel {
 
 class Logger {
     public:
+        std::string log_file;
         Logger(LogLevel log_level);
         LogLevel log_level;
         int log_info(std::string message);
