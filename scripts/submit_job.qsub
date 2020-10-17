@@ -1,21 +1,20 @@
 #!/bin/bash
 #PBS -A bbaz
 #PBS -j oe
-#PBS -l nodes=1:ppn=4:xe
+#PBS -l nodes=1:ppn=32:xe
 #PBS -l walltime=16:00:00
 #PBS -l gres=shifter
+#PBS -v UDI=minpark815/bio:latest
 #PBS -q normal
 #PBS -N MissionControl
-
-source /opt/modules/default/init/bash
-cd $PBS_O_WORKDIR
+ 
+export CRAY_ROOTFS=SHIFTER
 module load shifter
-shifterimg pull minpark815/bio:latest
+
+cd $PBS_O_WORKDIR
 
 if [ -f aprun.log ]; then
     mv aprun.log aprun.old.log
 fi
 
-export SHIFTER_IMAGETYPE=docker
-export SHIFTER_IMAGE=minpark815/bio:latest
-aprun -b -N 1 -d 4 -- shifter -- $PBS_O_WORKDIR/scripts/batch_script.aprun > $PBS_O_WORKDIR/aprun.log
+aprun -b -N 1 -cc none -- $PBS_O_WORKDIR/scripts/batch_script.aprun > $PBS_O_WORKDIR/aprun.log
