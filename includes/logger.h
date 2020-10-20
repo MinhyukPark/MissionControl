@@ -1,9 +1,11 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <string>
-#include <iostream>
+#include <chrono>
+#include <ctime>
 #include <fstream>
+#include <iostream>
+#include <string>
 
 enum class LogLevel {
     SILENT = 0,

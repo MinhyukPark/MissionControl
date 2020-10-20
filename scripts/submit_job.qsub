@@ -7,7 +7,7 @@
 #PBS -v UDI=minpark815/bio:latest
 #PBS -q normal
 #PBS -N MissionControl
- 
+
 export CRAY_ROOTFS=SHIFTER
 module load shifter
 
