@@ -2,37 +2,42 @@
 #define CONSTS_H
 
 /* meta */
-const std::string CURRENT_RUN_DESCRIPTION = "This is a divide and conquer pipeline with true alignment passed in as input. The FastTree starting tree is constructed and decomposed using centroid subset size decomposition. RAxML-ng is used to infer a tree on each subset. RAxML-ng is then run on each other's model in a pairwise manner. They are merged based on an algorithim similar to statistical binning. TreeMerge is used to merge all the subset trees.";
+const std::string CURRENT_RUN_DESCRIPTION = "This creates constraint trees.";
 
 /* directories */
 // system default directories
 /* const std::string PROJECTS = "/projects/sciteam/bbaz/minhyuk2/"; // e.g. "/projects/tallis/minhyuk2/", "projects/sciteam/bbaz/minhyuk2" */
 /* const std::string QUICK_SCRIPTS = "/u/sciteam/minhyuk2/git_repos/QuickScripts/"; // e.g. "/home/minhyuk2/git_repos/QuickScripts/", "/u/sciteam/minhyuk2/git_repos/QuickScrits/" */
 const std::string PROJECTS = "/projects/tallis/minhyuk2/"; // e.g. "/projects/tallis/minhyuk2/", "projects/sciteam/bbaz/minhyuk2"
-const std::string QUICK_SCRIPTS = "/home/minhyuk2/git_repos/QuickScripts/"; // e.g. "/home/minhyuk2/git_repos/QuickScripts/", "/u/sciteam/minhyuk2/git_repos/QuickScrits/"
+const std::string SCRATCH = "/home/minhyuk2/scratch/";
+const std::string QUICK_SCRIPTS = "/opt/QuickScripts/"; // e.g. "/home/minhyuk2/git_repos/QuickScripts/", "/u/sciteam/minhyuk2/git_repos/QuickScrits/"
 
 /* run parameters */
-const std::string METHOD_NAME = "PipelineBinning";
-const int MAX_PARALLELISM = 20; // fork limit = pthread limit = min(MAX_PARALLELISM, PARALLELISM)
-const std::string RAXML_NG_THREADS = "4";
-const int PARALLELISM = 10;
+const std::string METHOD = "CreateConstraintTrees";
+const int MAX_PARALLELISM = 12; // fork limit = pthread limit = min(MAX_PARALLELISM, PARALLELISM)
+const std::string STARTING_TREE = "IQTree2";
+const std::string SUBSET_SIZE = "500";
+const std::string TREE_INFERENCE_METHOD = "IQTree2"; // e.g. "FastTree", "IQTree2"
+const std::string GUIDE_TREE = "IQTree2";
+const std::string IQTREE_THREADS = "4";
+const std::string INCOMPLETE_SAMPLING = "0";
+const std::string SUPPORT_THRESHOLD = "0";
+const std::string RUN_FLAGS = "None"; // e.g. "Support Decompose"
+const bool MONITOR_TIME_MEMORY = true; // e.g. true, false
+const int PARALLELISM = 3;
 const int LOG_LEVEL = 2; // refer to includes/logger.h for the available levels
-const std::string SUPPORT_THRESHOLD = "80";
-const std::string BOOTSTRAP_NUM = "1000"; // refer to includes/logger.h for the available levels
 
 /* input file parameters */
-const std::string INPUT_FILE_NAME = PROJECTS + "input/SATe/100S1/R0/rose.aln.true.fasta"; // e.g. "true.fasta", "unaligned.fasta"
-const std::string CURRENT_DATASET = "SATe100S1"; // e.g. "1000S1", "1000M1", "rnasim1000"
-const std::string CURRENT_REPLICATE = "R0"; // e.g. "R0", "R1"
+const std::string INPUT_FILE_NAME = PROJECTS + "input/PASTA/RNASim/1000/1/model/true.fasta"; // e.g. "true.fasta", "unaligned.fasta"
+const std::string CURRENT_DATASET = "RNASim1000"; // e.g. "1000S1", "1000M1", "rnasim1000"
+const std::string CURRENT_REPLICATE = "1"; // e.g. "R0", "R1"
 const bool IS_ALIGNED = true; // e.g. true, false
-const std::string STARTING_TREE_METHOD = "FastTree"; // e.g. "FastTree", "IQTree"
-const std::string TREE_INFERENCE_METHOD = "RAxML-ng"; // e.g. "FastTree", "IQTree"
 const std::string SEQUENCE_PARTITION_PREFIX = "sequence_partition_"; // for python decomposer
 
 /* auto created and managed */
 // directories that will be created upon init
 const std::string CLUSTER_RUNS_DIR = PROJECTS + "cluster_runs/";
-const std::string CURRENT_RUN = CURRENT_DATASET + "/" + METHOD_NAME + "/" + STARTING_TREE_METHOD + "/" + TREE_INFERENCE_METHOD + "/" + CURRENT_REPLICATE + "/";
+const std::string CURRENT_RUN = CURRENT_DATASET + "/" + METHOD + "/" + SUBSET_SIZE + "/" + STARTING_TREE + "/" + CURRENT_REPLICATE + "/";
 const std::string INPUT_DIR = CLUSTER_RUNS_DIR + CURRENT_RUN + "input/";
 const std::string OUTPUT_DIR = CLUSTER_RUNS_DIR + CURRENT_RUN + "output/";
 const std::string ERROR_DIR = CLUSTER_RUNS_DIR + CURRENT_RUN + "errors/";

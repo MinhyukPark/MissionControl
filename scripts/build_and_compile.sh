@@ -2,8 +2,8 @@
 rm -r build
 mv tmp tmp_old
 mv input input_old
-mv errors errors_old
-mv output output_old
+# mv errors errors_old
+# mv output output_old
 mkdir build
 cd build
 export CC=/usr/bin/gcc

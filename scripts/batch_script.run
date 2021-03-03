@@ -11,12 +11,12 @@ else
 fi
 
 # check that the scirpt was run in a singularity shell
-raxmlexists=$(command -v raxmlHPC)
-if [[ $raxmlexists == "/usr/bin/raxmlHPC" ]]
+raxmlexists=$(command -v raxmlng)
+if [[ $raxmlexists == "/usr/bin/raxmlng" ]]
 then
-    echo "RAxML exists so assuming that the the script was run in a singularity shell."
+    echo "RAxML-ng exists so assuming that the the script was run in a singularity shell."
 else
-    echo "ERROR: RAxML binary does not exist. Make sure that the script is run inside a singularity shell."
+    echo "ERROR: RAxML-ng binary does not exist. Make sure that the script is run inside a singularity shell."
     exit 1
 fi
 
@@ -28,7 +28,7 @@ ${SLURM_SUBMIT_DIR}/scripts/build_and_compile.sh && ${SLURM_SUBMIT_DIR}/build/bi
 echo "End Program Output" >> $LOG_FILE
 echo "------------------" >> $LOG_FILE
 echo "Begin Cluster Log" >> $LOG_FILE
-cat ${SLURM_SUBMIT_DIR}/slurm* >> $LOG_FILE && rm ${SLURM_SUBMIT_DIR}/slurm*
+cat ${SLURM_SUBMIT_DIR}/slurm* >> $LOG_FILE
 
 echo "Ran to completion" >> $LOG_FILE
 cat $LOG_FILE >> "${SLURM_SUBMIT_DIR}/run.log"

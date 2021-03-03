@@ -82,7 +82,11 @@ void* MissionControl::program_launcher(void* args) {
         fclose(error_file);
         // add if file exists for env/bin/activate, run it to source
 
-        execvp(current_executable->executable_path, current_executable->executable_arguments);
+        if(MONITOR_TIME_MEMORY) {
+            execvp("/usr/bin/time", current_executable->executable_arguments);
+        } else {
+            execvp(current_executable->executable_path, current_executable->executable_arguments);
+        }
     } else {
         wait(NULL);
     }
@@ -92,6 +96,11 @@ void* MissionControl::program_launcher(void* args) {
 int MissionControl::run_executable(pthread_t* worker_threads, MetaExecutable** meta_executables, int worker_id) {
     std::string current_executable = this->executable_names[worker_id];
     int current_executable_arguments_count = this->executable_arguments_count[current_executable];
+
+    if(MONITOR_TIME_MEMORY) {
+        this->executable_arguments[current_executable].insert(this->executable_arguments[current_executable].begin(), "-v");
+        this->executable_arguments[current_executable].insert(this->executable_arguments[current_executable].begin(), "/usr/bin/time");
+    }
 
     char* current_executable_path_ptr = new char[this->executable_paths[current_executable].length() + 1];
     std::strcpy(current_executable_path_ptr, this->executable_paths[current_executable].c_str());
