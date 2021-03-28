@@ -62,13 +62,14 @@ int main(int argc, char* argv[]) {
         mc->add_executable(mafft_executable_name, mafft_binary);
         mc->update_executable_argument(mafft_executable_name, mafft_args);
         mc->list_executables();
-        mc->run_executables();
+        /* mc->run_executables(); */
+        mc->logger->log_info("not running mafft");
         mc->remove_executable(mafft_executable_name);
         if(STARTING_TREE == "MAFFT") {
-            starting_tree = mc->format_output_file(mafft_executable_name);
+            starting_tree = OUTPUT_DIR + "mafft.tree";
         }
         if(GUIDE_TREE == "MAFFT") {
-            guide_tree = mc->format_output_file(mafft_executable_name);
+            starting_tree = OUTPUT_DIR + "mafft.tree";
         }
     }
     if(STARTING_TREE == "ClustalOmega" || GUIDE_TREE == "ClustalOmega") {

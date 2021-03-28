@@ -95,12 +95,13 @@ void* MissionControl::program_launcher(void* args) {
 
 int MissionControl::run_executable(pthread_t* worker_threads, MetaExecutable** meta_executables, int worker_id) {
     std::string current_executable = this->executable_names[worker_id];
-    int current_executable_arguments_count = this->executable_arguments_count[current_executable];
 
     if(MONITOR_TIME_MEMORY) {
         this->executable_arguments[current_executable].insert(this->executable_arguments[current_executable].begin(), "-v");
         this->executable_arguments[current_executable].insert(this->executable_arguments[current_executable].begin(), "/usr/bin/time");
+        this->executable_arguments_count[current_executable] += 2;
     }
+    int current_executable_arguments_count = this->executable_arguments_count[current_executable];
 
     char* current_executable_path_ptr = new char[this->executable_paths[current_executable].length() + 1];
     std::strcpy(current_executable_path_ptr, this->executable_paths[current_executable].c_str());
